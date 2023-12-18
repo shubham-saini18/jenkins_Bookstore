@@ -1,0 +1,95 @@
+ pipeline{
+    
+    agent any
+    tools {
+        maven "Maven"
+        jdk "Java"
+        
+        
+    }
+    environment{
+        imageName = "book-store"
+        registryCredentials = "nexus"
+        registry = "65.0.101.234:8085"
+        dockerImage = ""
+    }
+    
+    stages {
+        stage('Git Checkout'){
+            
+            steps{
+                
+                script{
+                    
+                    git branch: 'master', url: 'https://github.com/shubham-saini18/book-store.git'
+                }
+            }
+        }
+        stage('UNIT testing'){
+            
+            steps{
+                
+                script{
+                    
+                    sh 'mvn test'
+                }
+            }
+        }
+        stage('Integration testing'){
+            
+            steps{
+                
+                script{
+                    
+                    sh 'mvn verify -DskipUnitTests'
+                }
+            }
+        }
+        stage('Maven build'){
+            
+            steps{
+                
+                script{
+                    
+                    sh 'mvn clean install'
+                }
+            }
+        }
+        
+        stage('Static code analysis'){
+            
+            steps{
+                
+                script{
+                    
+                    withSonarQubeEnv('sonarqube') {
+                           sh "mvn clean verify sonar:sonar \
+                          -Dsonar.projectKey=book-store \
+                          -Dsonar.host.url=http://13.233.33.78:9000"
+                    }
+                   }
+                    
+                }
+            }
+            stage('Quality Gate Status'){
+                
+                steps{
+                    
+                    script{
+                        
+                        waitForQualityGate abortPipeline: false, credentialsId: 'sonar-api'
+                    }
+                }
+            }
+            stage('Build Docker Image'){
+             steps {  
+                script {
+                    dockerImage = docker.build imageName
+                  }
+                }
+               }
+            
+            
+        }  
+        
+}
